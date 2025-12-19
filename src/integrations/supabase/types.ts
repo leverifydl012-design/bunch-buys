@@ -82,6 +82,69 @@ export type Database = {
           },
         ]
       }
+      inbound_shipments: {
+        Row: {
+          cartons: number
+          created_at: string | null
+          created_by: string
+          height: number | null
+          id: string
+          length: number | null
+          organization_id: string
+          purchase_order_id: string
+          shipment_reference: string
+          status: string
+          updated_at: string | null
+          weight_per_carton: number | null
+          width: number | null
+        }
+        Insert: {
+          cartons?: number
+          created_at?: string | null
+          created_by: string
+          height?: number | null
+          id?: string
+          length?: number | null
+          organization_id: string
+          purchase_order_id: string
+          shipment_reference: string
+          status?: string
+          updated_at?: string | null
+          weight_per_carton?: number | null
+          width?: number | null
+        }
+        Update: {
+          cartons?: number
+          created_at?: string | null
+          created_by?: string
+          height?: number | null
+          id?: string
+          length?: number | null
+          organization_id?: string
+          purchase_order_id?: string
+          shipment_reference?: string
+          status?: string
+          updated_at?: string | null
+          weight_per_carton?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_shipments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_shipments_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           id: string
@@ -265,6 +328,8 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          approval_notes: string | null
+          approved_at: string | null
           approved_by: string | null
           created_at: string | null
           created_by: string
@@ -275,6 +340,8 @@ export type Database = {
           total_cost: number | null
         }
         Insert: {
+          approval_notes?: string | null
+          approved_at?: string | null
           approved_by?: string | null
           created_at?: string | null
           created_by: string
@@ -285,6 +352,8 @@ export type Database = {
           total_cost?: number | null
         }
         Update: {
+          approval_notes?: string | null
+          approved_at?: string | null
           approved_by?: string | null
           created_at?: string | null
           created_by?: string

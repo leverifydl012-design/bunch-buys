@@ -24,38 +24,78 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle } from 'lucide-react';
-import { POStatus } from '@/types';
+import { Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle, Package, Loader2 } from 'lucide-react';
+import { usePurchaseOrders, useUpdatePOStatus, type PurchaseOrderWithDetails } from '@/hooks/usePurchaseOrders';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/hooks/useAuth';
+import { PODetailSheet } from '@/components/purchase-orders/PODetailSheet';
+import { ApprovalDialog } from '@/components/purchase-orders/ApprovalDialog';
+import { CreateShipmentDialog } from '@/components/purchase-orders/CreateShipmentDialog';
 
-// Demo data
-const demoPOs = [
-  { id: 'PO-001234', supplier: 'Global Parts Inc.', status: 'approved' as POStatus, totalCost: 12500.00, items: 15, createdAt: '2024-03-01', createdBy: 'Mike Purchasing' },
-  { id: 'PO-001235', supplier: 'Widget Supply Co.', status: 'submitted' as POStatus, totalCost: 8750.50, items: 8, createdAt: '2024-03-05', createdBy: 'Sarah Buyer' },
-  { id: 'PO-001236', supplier: 'TechParts Direct', status: 'draft' as POStatus, totalCost: 3200.00, items: 5, createdAt: '2024-03-08', createdBy: 'Mike Purchasing' },
-  { id: 'PO-001237', supplier: 'Global Parts Inc.', status: 'received' as POStatus, totalCost: 18400.75, items: 22, createdAt: '2024-02-15', createdBy: 'Mike Purchasing' },
-  { id: 'PO-001238', supplier: 'Office Supply Hub', status: 'cancelled' as POStatus, totalCost: 950.00, items: 3, createdAt: '2024-02-20', createdBy: 'Sarah Buyer' },
-];
-
-const statusConfig: Record<POStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   draft: { label: 'Draft', variant: 'outline' },
-  submitted: { label: 'Submitted', variant: 'secondary' },
+  submitted: { label: 'Pending Approval', variant: 'secondary' },
   approved: { label: 'Approved', variant: 'default' },
   received: { label: 'Received', variant: 'default' },
-  cancelled: { label: 'Cancelled', variant: 'destructive' },
+  cancelled: { label: 'Rejected', variant: 'destructive' },
 };
 
 export default function PurchaseOrders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [purchaseOrders] = useState(demoPOs);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrderWithDetails | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  const [shipmentOpen, setShipmentOpen] = useState(false);
+
+  const { data: purchaseOrders = [], isLoading } = usePurchaseOrders();
+  const updateStatus = useUpdatePOStatus();
+  const { canApprove, canCreatePO, canCreateShipment } = useUserRole();
+  const { user } = useAuth();
 
   const filteredPOs = purchaseOrders.filter((po) => {
+    const poNumber = `PO-${po.id.slice(0, 8).toUpperCase()}`;
     const matchesSearch =
-      po.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      po.supplier.toLowerCase().includes(searchQuery.toLowerCase());
+      poNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (po.supplier?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || po.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleViewDetails = (po: PurchaseOrderWithDetails) => {
+    setSelectedPO(po);
+    setDetailOpen(true);
+  };
+
+  const handleOpenApproval = (po: PurchaseOrderWithDetails) => {
+    setSelectedPO(po);
+    setApprovalOpen(true);
+  };
+
+  const handleApprove = (notes: string) => {
+    if (!selectedPO || !user?.id) return;
+    updateStatus.mutate(
+      { poId: selectedPO.id, status: 'approved', approvalNotes: notes, approvedBy: user.id },
+      { onSuccess: () => setApprovalOpen(false) }
+    );
+  };
+
+  const handleReject = (notes: string) => {
+    if (!selectedPO || !user?.id) return;
+    updateStatus.mutate(
+      { poId: selectedPO.id, status: 'cancelled', approvalNotes: notes, approvedBy: user.id },
+      { onSuccess: () => setApprovalOpen(false) }
+    );
+  };
+
+  const handleOpenShipment = (po: PurchaseOrderWithDetails) => {
+    setSelectedPO(po);
+    setShipmentOpen(true);
+  };
+
+  const pendingCount = purchaseOrders.filter((po) => po.status === 'submitted').length;
+  const approvedCount = purchaseOrders.filter((po) => po.status === 'approved').length;
+  const totalValue = purchaseOrders.reduce((sum, po) => sum + (po.total_cost || 0), 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -65,10 +105,12 @@ export default function PurchaseOrders() {
           <h1 className="text-3xl font-bold text-foreground">Purchase Orders</h1>
           <p className="text-muted-foreground mt-1">Manage and track purchase orders</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create PO
-        </Button>
+        {canCreatePO && (
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create PO
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -82,24 +124,20 @@ export default function PurchaseOrders() {
         <Card className="shadow-soft">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Pending Approval</div>
-            <div className="text-2xl font-bold text-warning">
-              {purchaseOrders.filter((po) => po.status === 'submitted').length}
-            </div>
+            <div className="text-2xl font-bold text-warning">{pendingCount}</div>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Approved</div>
-            <div className="text-2xl font-bold text-success">
-              {purchaseOrders.filter((po) => po.status === 'approved').length}
-            </div>
+            <div className="text-2xl font-bold text-success">{approvedCount}</div>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total Value</div>
             <div className="text-2xl font-bold text-foreground">
-              ${purchaseOrders.reduce((sum, po) => sum + po.totalCost, 0).toLocaleString()}
+              ${totalValue.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -119,16 +157,16 @@ export default function PurchaseOrders() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="submitted">Pending Approval</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="received">Received</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="cancelled">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -141,71 +179,131 @@ export default function PurchaseOrders() {
           <CardTitle className="text-lg">Purchase Orders ({filteredPOs.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>PO Number</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPOs.map((po) => (
-                <TableRow key={po.id}>
-                  <TableCell className="font-mono font-medium">{po.id}</TableCell>
-                  <TableCell>{po.supplier}</TableCell>
-                  <TableCell>{po.items} items</TableCell>
-                  <TableCell className="text-right font-medium">
-                    ${po.totalCost.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={statusConfig[po.status].variant}
-                      className={po.status === 'approved' || po.status === 'received' ? 'bg-success text-success-foreground' : ''}
-                    >
-                      {statusConfig[po.status].label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(po.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        {po.status === 'submitted' && (
-                          <>
-                            <DropdownMenuItem className="text-success">
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Approve
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredPOs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No purchase orders found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>PO Number</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredPOs.map((po) => {
+                  const config = statusConfig[po.status] || statusConfig.draft;
+                  const isApproved = po.status === 'approved';
+                  const isPending = po.status === 'submitted';
+                  
+                  return (
+                    <TableRow key={po.id}>
+                      <TableCell className="font-mono font-medium">
+                        PO-{po.id.slice(0, 8).toUpperCase()}
+                      </TableCell>
+                      <TableCell>{po.supplier?.name || 'Unknown'}</TableCell>
+                      <TableCell>{po.items?.length || 0} items</TableCell>
+                      <TableCell className="text-right font-medium">
+                        ${(po.total_cost || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={config.variant}
+                          className={isApproved ? 'bg-success text-success-foreground' : ''}
+                        >
+                          {config.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(po.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewDetails(po)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            {isPending && canApprove && (
+                              <>
+                                <DropdownMenuItem 
+                                  className="text-success"
+                                  onClick={() => handleOpenApproval(po)}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Approve / Reject
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {isApproved && canCreateShipment && (
+                              <DropdownMenuItem onClick={() => handleOpenShipment(po)}>
+                                <Package className="mr-2 h-4 w-4" />
+                                Create Shipment
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      <PODetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        purchaseOrder={selectedPO}
+        canApprove={canApprove}
+        canCreateShipment={canCreateShipment}
+        onApprove={() => {
+          setDetailOpen(false);
+          setApprovalOpen(true);
+        }}
+        onCreateShipment={() => {
+          setDetailOpen(false);
+          setShipmentOpen(true);
+        }}
+      />
+
+      {selectedPO && (
+        <>
+          <ApprovalDialog
+            open={approvalOpen}
+            onOpenChange={setApprovalOpen}
+            poId={selectedPO.id}
+            poNumber={`PO-${selectedPO.id.slice(0, 8).toUpperCase()}`}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            isLoading={updateStatus.isPending}
+          />
+
+          <CreateShipmentDialog
+            open={shipmentOpen}
+            onOpenChange={setShipmentOpen}
+            purchaseOrder={selectedPO}
+          />
+        </>
+      )}
     </div>
   );
 }

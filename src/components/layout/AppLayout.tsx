@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Package as PackageIcon,
   Shield,
+  Truck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -48,6 +49,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     const userNav = [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
+      { name: 'Shipments', href: '/shipments', icon: Truck },
     ];
 
     // Admin sees everything
@@ -55,6 +57,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       return [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
+        { name: 'Shipments', href: '/shipments', icon: Truck },
         { name: 'Products', href: '/products', icon: Package },
         { name: 'SKUs', href: '/skus', icon: Barcode },
         { name: 'Inventory', href: '/inventory', icon: Warehouse },

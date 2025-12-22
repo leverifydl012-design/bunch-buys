@@ -27,6 +27,7 @@ import Approvals from "@/pages/Approvals";
 import Reports from "@/pages/Reports";
 import Billing from "@/pages/Billing";
 import Settings from "@/pages/Settings";
+import Shipments from "@/pages/Shipments";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,11 @@ function AppRoutes() {
       <Route path="/purchase-orders" element={
         <ProtectedRoute>
           <AppLayout><PurchaseOrders /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/shipments" element={
+        <ProtectedRoute>
+          <AppLayout><Shipments /></AppLayout>
         </ProtectedRoute>
       } />
       

@@ -14,6 +14,8 @@ export interface InboundShipment {
   length: number;
   width: number;
   height: number;
+  carrier: string | null;
+  tracking_number: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -62,6 +64,8 @@ export function useCreateShipment() {
       length,
       width,
       height,
+      carrier,
+      trackingNumber,
     }: {
       purchaseOrderId: string;
       cartons: number;
@@ -69,6 +73,8 @@ export function useCreateShipment() {
       length: number;
       width: number;
       height: number;
+      carrier?: string;
+      trackingNumber?: string;
     }) => {
       if (!currentOrg?.id || !user?.id) throw new Error('Not authenticated');
 
@@ -86,6 +92,8 @@ export function useCreateShipment() {
           length,
           width,
           height,
+          carrier: carrier || null,
+          tracking_number: trackingNumber || null,
           created_by: user.id,
           status: 'created',
         })

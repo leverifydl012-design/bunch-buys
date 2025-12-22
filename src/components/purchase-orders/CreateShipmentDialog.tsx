@@ -8,7 +8,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Package, Truck } from 'lucide-react';
 import { useCreateShipment } from '@/hooks/useInboundShipments';
 import type { PurchaseOrderWithDetails } from '@/hooks/usePurchaseOrders';
 
@@ -28,6 +35,8 @@ export function CreateShipmentDialog({
   const [length, setLength] = useState('');
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
+  const [carrier, setCarrier] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
 
   const createShipment = useCreateShipment();
 
@@ -42,6 +51,8 @@ export function CreateShipmentDialog({
         length: parseFloat(length) || 0,
         width: parseFloat(width) || 0,
         height: parseFloat(height) || 0,
+        carrier: carrier || undefined,
+        trackingNumber: trackingNumber || undefined,
       },
       {
         onSuccess: () => {
@@ -58,6 +69,8 @@ export function CreateShipmentDialog({
     setLength('');
     setWidth('');
     setHeight('');
+    setCarrier('');
+    setTrackingNumber('');
   };
 
   const totalItems = purchaseOrder.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
@@ -80,6 +93,37 @@ export function CreateShipmentDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Carrier Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="carrier" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Carrier
+            </Label>
+            <Select value={carrier} onValueChange={setCarrier}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select carrier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fedex">FedEx</SelectItem>
+                <SelectItem value="ups">UPS</SelectItem>
+                <SelectItem value="usps">USPS</SelectItem>
+                <SelectItem value="dhl">DHL</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tracking Number */}
+          <div className="space-y-2">
+            <Label htmlFor="tracking">Tracking Number</Label>
+            <Input
+              id="tracking"
+              value={trackingNumber}
+              onChange={(e) => setTrackingNumber(e.target.value)}
+              placeholder="Enter tracking number"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="cartons">Number of Cartons</Label>
             <Input

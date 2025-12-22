@@ -84,6 +84,7 @@ export type Database = {
       }
       inbound_shipments: {
         Row: {
+          carrier: string | null
           cartons: number
           created_at: string | null
           created_by: string
@@ -94,11 +95,13 @@ export type Database = {
           purchase_order_id: string
           shipment_reference: string
           status: string
+          tracking_number: string | null
           updated_at: string | null
           weight_per_carton: number | null
           width: number | null
         }
         Insert: {
+          carrier?: string | null
           cartons?: number
           created_at?: string | null
           created_by: string
@@ -109,11 +112,13 @@ export type Database = {
           purchase_order_id: string
           shipment_reference: string
           status?: string
+          tracking_number?: string | null
           updated_at?: string | null
           weight_per_carton?: number | null
           width?: number | null
         }
         Update: {
+          carrier?: string | null
           cartons?: number
           created_at?: string | null
           created_by?: string
@@ -124,6 +129,7 @@ export type Database = {
           purchase_order_id?: string
           shipment_reference?: string
           status?: string
+          tracking_number?: string | null
           updated_at?: string | null
           weight_per_carton?: number | null
           width?: number | null
@@ -546,6 +552,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_user_organization: { Args: never; Returns: string }
       get_user_org_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_org_role: {
         Args: { _org_id: string; _user_id: string }

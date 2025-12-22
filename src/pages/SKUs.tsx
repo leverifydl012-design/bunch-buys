@@ -17,27 +17,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
-import { SKU } from '@/types';
-
-// Demo data
-const demoSKUs: (SKU & { productTitle: string })[] = [
-  { id: '1', productId: '1', sku: 'WGT-001-BLK', asin: 'B08X1234AB', fnsku: 'X001ABC123', cost: 12.99, createdAt: '2024-01-15', productTitle: 'Premium Widget Set' },
-  { id: '2', productId: '1', sku: 'WGT-001-WHT', asin: 'B08X1234AC', fnsku: 'X001ABC124', cost: 12.99, createdAt: '2024-01-15', productTitle: 'Premium Widget Set' },
-  { id: '3', productId: '2', sku: 'GDT-002-LRG', asin: 'B08Y5678DE', fnsku: 'X002DEF456', cost: 24.50, createdAt: '2024-01-20', productTitle: 'Industrial Gadget Pack' },
-  { id: '4', productId: '3', sku: 'TLK-003-PRO', asin: 'B08Z9012FG', fnsku: 'X003GHI789', cost: 45.00, createdAt: '2024-02-01', productTitle: 'Professional Tool Kit' },
-  { id: '5', productId: '4', sku: 'ELC-004-STD', asin: 'B09A3456HI', fnsku: 'X004JKL012', cost: 8.75, createdAt: '2024-02-10', productTitle: 'Electronic Component Bundle' },
-];
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Loader2 } from 'lucide-react';
+import { useSKUs } from '@/hooks/useSKUs';
+import { CreateSKUDialog } from '@/components/skus/CreateSKUDialog';
 
 export default function SKUs() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [skus] = useState(demoSKUs);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const { data: skus = [], isLoading } = useSKUs();
 
   const filteredSKUs = skus.filter(
     (sku) =>
       sku.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sku.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sku.productTitle.toLowerCase().includes(searchQuery.toLowerCase())
+      (sku.asin || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sku.product?.title || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -48,7 +41,7 @@ export default function SKUs() {
           <h1 className="text-3xl font-bold text-foreground">SKUs</h1>
           <p className="text-muted-foreground mt-1">Manage your stock keeping units</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Add SKU
         </Button>
@@ -77,58 +70,74 @@ export default function SKUs() {
           <CardTitle className="text-lg">All SKUs ({filteredSKUs.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>ASIN</TableHead>
-                <TableHead>FNSKU</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSKUs.map((sku) => (
-                <TableRow key={sku.id}>
-                  <TableCell className="font-mono font-medium">{sku.sku}</TableCell>
-                  <TableCell>{sku.productTitle}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono">
-                      {sku.asin || '-'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {sku.fnsku || '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    ${sku.cost.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredSKUs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No SKUs found. Click "Add SKU" to create one.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>ASIN</TableHead>
+                  <TableHead>FNSKU</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredSKUs.map((sku) => (
+                  <TableRow key={sku.id}>
+                    <TableCell className="font-mono font-medium">{sku.sku}</TableCell>
+                    <TableCell>{sku.product?.title || '-'}</TableCell>
+                    <TableCell>
+                      {sku.asin ? (
+                        <Badge variant="outline" className="font-mono">
+                          {sku.asin}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {sku.fnsku || '-'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      ${(sku.cost || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <CreateSKUDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
     </div>
   );
 }

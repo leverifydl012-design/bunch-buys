@@ -29,16 +29,15 @@ export function ApprovalDialog({
   isLoading,
 }: ApprovalDialogProps) {
   const [notes, setNotes] = useState('');
-  const [action, setAction] = useState<'approve' | 'reject' | null>(null);
 
-  const handleSubmit = () => {
-    if (action === 'approve') {
-      onApprove(notes);
-    } else if (action === 'reject') {
-      onReject(notes);
-    }
+  const handleApprove = () => {
+    onApprove(notes);
     setNotes('');
-    setAction(null);
+  };
+
+  const handleReject = () => {
+    onReject(notes);
+    setNotes('');
   };
 
   return (
@@ -61,10 +60,7 @@ export function ApprovalDialog({
           <div className="flex gap-3 justify-end">
             <Button
               variant="destructive"
-              onClick={() => {
-                setAction('reject');
-                handleSubmit();
-              }}
+              onClick={handleReject}
               disabled={isLoading}
               className="gap-2"
             >
@@ -72,10 +68,7 @@ export function ApprovalDialog({
               Reject
             </Button>
             <Button
-              onClick={() => {
-                setAction('approve');
-                handleSubmit();
-              }}
+              onClick={handleApprove}
               disabled={isLoading}
               className="gap-2 bg-success hover:bg-success/90"
             >

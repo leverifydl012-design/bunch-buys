@@ -9,6 +9,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Loader2 } from "lucide-react";
 
 // Auth Pages
+import AuthLanding from "@/pages/auth/AuthLanding";
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
 import ResetPassword from "@/pages/auth/ResetPassword";
@@ -44,6 +45,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Auth Routes */}
+      <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <AuthLanding />} />
       <Route path="/auth/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
       <Route path="/auth/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
       <Route path="/auth/reset-password" element={<ResetPassword />} />
@@ -109,7 +111,7 @@ function AppRoutes() {
       } />
       
       {/* Redirects */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/auth" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

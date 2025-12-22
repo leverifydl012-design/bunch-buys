@@ -44,14 +44,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   // Define navigation based on role
   const getNavigation = () => {
-    const baseNav = [
+    // User only sees Dashboard and Purchase Orders
+    const userNav = [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
     ];
 
+    // Admin sees everything
     if (isAdmin) {
       return [
-        ...baseNav,
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
         { name: 'Products', href: '/products', icon: Package },
         { name: 'SKUs', href: '/skus', icon: Barcode },
         { name: 'Inventory', href: '/inventory', icon: Warehouse },
@@ -62,7 +65,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       ];
     }
 
-    return baseNav;
+    return userNav;
   };
 
   const navigation = getNavigation();

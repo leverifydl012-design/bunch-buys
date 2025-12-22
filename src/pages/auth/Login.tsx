@@ -1,23 +1,27 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, Shield, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!email || !password) {
       toast({
         title: 'Error',
@@ -27,18 +31,39 @@ export default function Login() {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a valid email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await login(email, password);
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast({
+          title: 'Authentication Error',
+          description: error.message || 'Invalid credentials',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
         title: 'Welcome back!',
         description: 'You have successfully logged in.',
       });
-      navigate('/dashboard');
+      navigate(from, { replace: true });
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Invalid credentials',
+        description: 'An unexpected error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -63,6 +88,27 @@ export default function Login() {
             <CardTitle className="text-2xl font-semibold">Sign in</CardTitle>
             <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
+          
+          {/* Role badges */}
+          <div className="px-6 pb-4">
+            <div className="flex gap-3">
+              <div className="flex-1 p-3 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <User className="h-4 w-4 text-primary" />
+                  User Access
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Create & view your POs</p>
+              </div>
+              <div className="flex-1 p-3 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Admin Access
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Full system control</p>
+              </div>
+            </div>
+          </div>
+          
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -74,6 +120,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
+                  autoComplete="email"
                 />
               </div>
               <div className="space-y-2">
@@ -93,6 +140,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
               </div>
             </CardContent>
@@ -116,10 +164,6 @@ export default function Login() {
             </CardFooter>
           </form>
         </Card>
-
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Demo mode: Enter any email and password to login
-        </p>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import type { Database } from '@/integrations/supabase/types';
 type AppRole = Database['public']['Enums']['app_role'];
 
 export function useUserRole() {
-  const { currentOrg, user } = useAuth();
+  const { user, currentOrg } = useAuth();
 
   const { data: role, isLoading } = useQuery({
     queryKey: ['userRole', user?.id, currentOrg?.id],

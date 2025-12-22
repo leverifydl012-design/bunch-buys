@@ -4,12 +4,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
+import { Loader2 } from "lucide-react";
 
 // Auth Pages
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
 import ResetPassword from "@/pages/auth/ResetPassword";
+import Unauthorized from "@/pages/Unauthorized";
 
 // App Pages
 import Dashboard from "@/pages/Dashboard";
@@ -27,22 +30,16 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function AppRoutes() {
   const { user, isLoading } = useAuth();
   
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
-  
-  if (!user) {
-    return <Navigate to="/auth/login" replace />;
-  }
-  
-  return <AppLayout>{children}</AppLayout>;
-}
-
-function AppRoutes() {
-  const { user } = useAuth();
   
   return (
     <Routes>
@@ -50,19 +47,66 @@ function AppRoutes() {
       <Route path="/auth/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
       <Route path="/auth/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
       <Route path="/auth/reset-password" element={<ResetPassword />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
       
-      {/* Protected Routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-      <Route path="/skus" element={<ProtectedRoute><SKUs /></ProtectedRoute>} />
-      <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-      <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrders /></ProtectedRoute>} />
-      <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-      <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
-      <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      {/* Protected Routes - All Users */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <AppLayout><Dashboard /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/purchase-orders" element={
+        <ProtectedRoute>
+          <AppLayout><PurchaseOrders /></AppLayout>
+        </ProtectedRoute>
+      } />
+      
+      {/* Protected Routes - Admin Only */}
+      <Route path="/products" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Products /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/skus" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><SKUs /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/inventory" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Inventory /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/suppliers" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Suppliers /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/warehouses" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Warehouses /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/approvals" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Approvals /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/reports" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Reports /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/billing" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Billing /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><Settings /></AppLayout>
+        </ProtectedRoute>
+      } />
       
       {/* Redirects */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

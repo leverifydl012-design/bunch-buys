@@ -35,14 +35,14 @@ export interface PurchaseOrderWithDetails {
 }
 
 export function usePurchaseOrders() {
-  const { currentOrg } = useAuth();
+  const { currentOrg, user, isAdmin } = useAuth();
 
   return useQuery({
-    queryKey: ['purchaseOrders', currentOrg?.id],
+    queryKey: ['purchaseOrders', currentOrg?.id, user?.id, isAdmin],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('purchase_orders')
         .select(`
           *,
@@ -63,6 +63,13 @@ export function usePurchaseOrders() {
         .eq('organization_id', currentOrg.id)
         .order('created_at', { ascending: false });
 
+      // Non-admin users can only see their own POs
+      if (!isAdmin && user?.id) {
+        query = query.eq('created_by', user.id);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
         console.error('Error fetching purchase orders:', error);
         throw error;
@@ -76,7 +83,7 @@ export function usePurchaseOrders() {
 
 export function useUpdatePOStatus() {
   const queryClient = useQueryClient();
-  const { currentOrg } = useAuth();
+  const { currentOrg, user, isAdmin } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -109,7 +116,7 @@ export function useUpdatePOStatus() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchaseOrders', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders', currentOrg?.id, user?.id, isAdmin] });
     },
     onError: (error) => {
       toast({
@@ -123,7 +130,7 @@ export function useUpdatePOStatus() {
 
 export function useCreatePurchaseOrder() {
   const queryClient = useQueryClient();
-  const { currentOrg, user } = useAuth();
+  const { currentOrg, user, isAdmin } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -169,7 +176,7 @@ export function useCreatePurchaseOrder() {
       return po;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchaseOrders', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders', currentOrg?.id, user?.id, isAdmin] });
       toast({
         title: 'Success',
         description: 'Purchase order created successfully',

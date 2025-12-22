@@ -15,12 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useUserDisplay } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, Save, Users, Shield, Bell, Building2 } from 'lucide-react';
 
 export default function Settings() {
   const { user, currentOrg } = useAuth();
+  const { fullName, email } = useUserDisplay();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -72,7 +73,7 @@ export default function Settings() {
                 <div className="relative">
                   <Avatar className="h-20 w-20">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                      {user ? getInitials(user.fullName) : 'U'}
+                      {getInitials(fullName)}
                     </AvatarFallback>
                   </Avatar>
                   <Button
@@ -84,8 +85,8 @@ export default function Settings() {
                   </Button>
                 </div>
                 <div>
-                  <p className="font-medium">{user?.fullName}</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  <p className="font-medium">{fullName}</p>
+                  <p className="text-sm text-muted-foreground">{email}</p>
                 </div>
               </div>
 
@@ -94,11 +95,11 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" defaultValue={user?.fullName} />
+                  <Input id="fullName" defaultValue={fullName} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue={user?.email} />
+                  <Input id="email" type="email" defaultValue={email} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
@@ -138,13 +139,13 @@ export default function Settings() {
                 <Building2 className="h-5 w-5" />
                 Organization Settings
               </CardTitle>
-              <CardDescription>Manage {currentOrg?.name} settings</CardDescription>
+              <CardDescription>Manage {currentOrg?.name || 'organization'} settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="orgName">Organization Name</Label>
-                  <Input id="orgName" defaultValue={currentOrg?.name} />
+                  <Input id="orgName" defaultValue={currentOrg?.name || ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Default Currency</Label>

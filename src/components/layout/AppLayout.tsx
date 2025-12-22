@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useUserDisplay } from '@/hooks/useAuth';
+import { usePermissions } from '@/components/auth/RoleGuard';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -16,6 +17,7 @@ import {
   LogOut,
   ChevronDown,
   Package as PackageIcon,
+  Shield,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -27,35 +29,53 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Products', href: '/products', icon: Package },
-  { name: 'SKUs', href: '/skus', icon: Barcode },
-  { name: 'Inventory', href: '/inventory', icon: Warehouse },
-  { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
-  { name: 'Suppliers', href: '/suppliers', icon: Users },
-  { name: 'Warehouses', href: '/warehouses', icon: Building2 },
-  { name: 'Approvals', href: '/approvals', icon: CheckSquare },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-];
-
-const bottomNavigation = [
-  { name: 'Billing', href: '/billing', icon: CreditCard },
-  { name: 'Settings', href: '/settings', icon: Settings },
-];
+import { Badge } from '@/components/ui/badge';
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const { user, currentOrg, organizations, logout, switchOrg } = useAuth();
+  const { user, currentOrg, organizations, signOut, switchOrg, role } = useAuth();
+  const { fullName, email } = useUserDisplay();
+  const { isAdmin } = usePermissions();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  // Define navigation based on role
+  const getNavigation = () => {
+    const baseNav = [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
+    ];
+
+    if (isAdmin) {
+      return [
+        ...baseNav,
+        { name: 'Products', href: '/products', icon: Package },
+        { name: 'SKUs', href: '/skus', icon: Barcode },
+        { name: 'Inventory', href: '/inventory', icon: Warehouse },
+        { name: 'Suppliers', href: '/suppliers', icon: Users },
+        { name: 'Warehouses', href: '/warehouses', icon: Building2 },
+        { name: 'Approvals', href: '/approvals', icon: CheckSquare },
+        { name: 'Reports', href: '/reports', icon: BarChart3 },
+      ];
+    }
+
+    return baseNav;
+  };
+
+  const navigation = getNavigation();
+
+  const bottomNavigation = isAdmin 
+    ? [
+        { name: 'Billing', href: '/billing', icon: CreditCard },
+        { name: 'Settings', href: '/settings', icon: Settings },
+      ]
+    : [];
+
+  const handleLogout = async () => {
+    await signOut();
     navigate('/auth/login');
   };
 
@@ -83,46 +103,48 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         {/* Organization Switcher */}
-        <div className="p-3 border-b border-sidebar-border">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-between h-auto py-2 px-3 hover:bg-sidebar-accent text-sidebar-foreground"
-              >
-                <div className="flex items-center gap-2 text-left">
-                  <div className="w-8 h-8 rounded bg-sidebar-accent flex items-center justify-center">
-                    <Building2 className="w-4 h-4 text-sidebar-foreground" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium truncate max-w-[140px]">
-                      {currentOrg?.name || 'Select Organization'}
-                    </span>
-                    <span className="text-xs text-sidebar-muted">Organization</span>
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 text-sidebar-muted shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="start">
-              <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {organizations.map((org) => (
-                <DropdownMenuItem
-                  key={org.id}
-                  onClick={() => switchOrg(org.id)}
-                  className={cn(
-                    'cursor-pointer',
-                    currentOrg?.id === org.id && 'bg-accent'
-                  )}
+        {organizations.length > 0 && (
+          <div className="p-3 border-b border-sidebar-border">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between h-auto py-2 px-3 hover:bg-sidebar-accent text-sidebar-foreground"
                 >
-                  <Building2 className="mr-2 h-4 w-4" />
-                  {org.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                  <div className="flex items-center gap-2 text-left">
+                    <div className="w-8 h-8 rounded bg-sidebar-accent flex items-center justify-center">
+                      <Building2 className="w-4 h-4 text-sidebar-foreground" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium truncate max-w-[140px]">
+                        {currentOrg?.name || 'Select Organization'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">Organization</span>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="start">
+                <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {organizations.map((org) => (
+                  <DropdownMenuItem
+                    key={org.id}
+                    onClick={() => switchOrg(org.id)}
+                    className={cn(
+                      'cursor-pointer',
+                      currentOrg?.id === org.id && 'bg-accent'
+                    )}
+                  >
+                    <Building2 className="mr-2 h-4 w-4" />
+                    {org.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
         {/* Main Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -147,26 +169,28 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="p-3 space-y-1 border-t border-sidebar-border">
-          {bottomNavigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent'
-                )}
-              >
-                <item.icon className="h-5 w-5 shrink-0" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </div>
+        {bottomNavigation.length > 0 && (
+          <div className="p-3 space-y-1 border-t border-sidebar-border">
+            {bottomNavigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent'
+                  )}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* User Menu */}
         <div className="p-3 border-t border-sidebar-border">
@@ -178,15 +202,26 @@ export default function AppLayout({ children }: AppLayoutProps) {
               >
                 <Avatar className="h-8 w-8 mr-2">
                   <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
-                    {user ? getInitials(user.fullName) : 'U'}
+                    {getInitials(fullName)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col text-left">
-                  <span className="text-sm font-medium text-sidebar-foreground truncate max-w-[140px]">
-                    {user?.fullName || 'User'}
-                  </span>
-                  <span className="text-xs text-sidebar-muted truncate max-w-[140px]">
-                    {user?.email || ''}
+                <div className="flex flex-col text-left flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-sidebar-foreground truncate">
+                      {fullName}
+                    </span>
+                    {role && (
+                      <Badge 
+                        variant={isAdmin ? 'default' : 'secondary'} 
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {isAdmin ? <Shield className="h-2.5 w-2.5 mr-0.5" /> : null}
+                        {role}
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {email}
                   </span>
                 </div>
               </Button>
@@ -194,10 +229,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <DropdownMenuContent className="w-56" align="start">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />

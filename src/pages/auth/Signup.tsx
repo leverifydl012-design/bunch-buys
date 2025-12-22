@@ -50,7 +50,7 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      await signup(email, password, fullName);
+      await signUp(email, password, fullName);
       toast({
         title: 'Account created!',
         description: 'Welcome to FBA Wholesale.',

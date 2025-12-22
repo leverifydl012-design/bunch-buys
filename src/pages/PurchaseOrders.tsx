@@ -24,13 +24,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle, Package, Loader2 } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Eye, CheckCircle, Package, Loader2 } from 'lucide-react';
 import { usePurchaseOrders, useUpdatePOStatus, type PurchaseOrderWithDetails } from '@/hooks/usePurchaseOrders';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 import { PODetailSheet } from '@/components/purchase-orders/PODetailSheet';
 import { ApprovalDialog } from '@/components/purchase-orders/ApprovalDialog';
 import { CreateShipmentDialog } from '@/components/purchase-orders/CreateShipmentDialog';
+import { CreatePODialog } from '@/components/purchase-orders/CreatePODialog';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   draft: { label: 'Draft', variant: 'outline' },
@@ -47,6 +48,7 @@ export default function PurchaseOrders() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [shipmentOpen, setShipmentOpen] = useState(false);
+  const [createPOOpen, setCreatePOOpen] = useState(false);
 
   const { data: purchaseOrders = [], isLoading } = usePurchaseOrders();
   const updateStatus = useUpdatePOStatus();
@@ -105,12 +107,10 @@ export default function PurchaseOrders() {
           <h1 className="text-3xl font-bold text-foreground">Purchase Orders</h1>
           <p className="text-muted-foreground mt-1">Manage and track purchase orders</p>
         </div>
-        {canCreatePO && (
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create PO
-          </Button>
-        )}
+        <Button className="gap-2" onClick={() => setCreatePOOpen(true)}>
+          <Plus className="h-4 w-4" />
+          Create PO
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -304,6 +304,11 @@ export default function PurchaseOrders() {
           />
         </>
       )}
+
+      <CreatePODialog
+        open={createPOOpen}
+        onOpenChange={setCreatePOOpen}
+      />
     </div>
   );
 }

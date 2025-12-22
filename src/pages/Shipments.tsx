@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Truck, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, Loader2, ExternalLink } from 'lucide-react';
 import { useInboundShipments, useUpdateShipmentStatus } from '@/hooks/useInboundShipments';
 import { format } from 'date-fns';
 
@@ -12,6 +12,14 @@ const statusConfig = {
   created: { label: 'Created', variant: 'secondary' as const, icon: Clock },
   in_transit: { label: 'In Transit', variant: 'default' as const, icon: Truck },
   delivered: { label: 'Delivered', variant: 'outline' as const, icon: CheckCircle },
+};
+
+const carrierConfig: Record<string, { label: string; trackingUrl: string }> = {
+  fedex: { label: 'FedEx', trackingUrl: 'https://www.fedex.com/fedextrack/?trknbr=' },
+  ups: { label: 'UPS', trackingUrl: 'https://www.ups.com/track?tracknum=' },
+  usps: { label: 'USPS', trackingUrl: 'https://tools.usps.com/go/TrackConfirmAction?tLabels=' },
+  dhl: { label: 'DHL', trackingUrl: 'https://www.dhl.com/us-en/home/tracking.html?tracking-id=' },
+  other: { label: 'Other', trackingUrl: '' },
 };
 
 export default function Shipments() {
@@ -55,6 +63,40 @@ export default function Shipments() {
         </div>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="shadow-soft">
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Total Shipments</div>
+            <div className="text-2xl font-bold text-foreground">{shipments?.length || 0}</div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft">
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Created</div>
+            <div className="text-2xl font-bold text-warning">
+              {shipments?.filter(s => s.status === 'created').length || 0}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft">
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">In Transit</div>
+            <div className="text-2xl font-bold text-primary">
+              {shipments?.filter(s => s.status === 'in_transit').length || 0}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft">
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Delivered</div>
+            <div className="text-2xl font-bold text-success">
+              {shipments?.filter(s => s.status === 'delivered').length || 0}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex items-center gap-4">
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-[180px]">
@@ -91,10 +133,11 @@ export default function Shipments() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Reference</TableHead>
+                  <TableHead>Carrier</TableHead>
+                  <TableHead>Tracking</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Cartons</TableHead>
                   <TableHead>Weight/Carton</TableHead>
-                  <TableHead>Dimensions (L×W×H)</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -103,11 +146,38 @@ export default function Shipments() {
                 {filteredShipments.map((shipment) => {
                   const config = statusConfig[shipment.status as keyof typeof statusConfig] || statusConfig.created;
                   const StatusIcon = config.icon;
+                  const carrierInfo = shipment.carrier ? carrierConfig[shipment.carrier] : null;
                   
                   return (
                     <TableRow key={shipment.id}>
                       <TableCell className="font-mono font-medium">
                         {shipment.shipment_reference}
+                      </TableCell>
+                      <TableCell>
+                        {carrierInfo ? (
+                          <Badge variant="outline">{carrierInfo.label}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {shipment.tracking_number ? (
+                          carrierInfo?.trackingUrl ? (
+                            <a
+                              href={`${carrierInfo.trackingUrl}${shipment.tracking_number}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-primary hover:underline"
+                            >
+                              {shipment.tracking_number}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="font-mono">{shipment.tracking_number}</span>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
@@ -116,10 +186,7 @@ export default function Shipments() {
                         </Badge>
                       </TableCell>
                       <TableCell>{shipment.cartons}</TableCell>
-                      <TableCell>{shipment.weight_per_carton} kg</TableCell>
-                      <TableCell>
-                        {shipment.length} × {shipment.width} × {shipment.height} cm
-                      </TableCell>
+                      <TableCell>{shipment.weight_per_carton} lbs</TableCell>
                       <TableCell>
                         {shipment.created_at ? format(new Date(shipment.created_at), 'MMM d, yyyy') : '-'}
                       </TableCell>

@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserOrganizations = useCallback(async (userId: string) => {
     try {
-      const { data: memberData, error: memberError } = await supabase
+      let { data: memberData, error: memberError } = await supabase
         .from('organization_members')
         .select('organization_id, role')
         .eq('user_id', userId);
@@ -68,6 +68,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (memberError) {
         console.error('Error fetching org memberships:', memberError);
         return;
+      }
+
+      // If user has no organization, bootstrap one automatically
+      if (!memberData || memberData.length === 0) {
+        const { data: newOrgId, error: bootstrapError } = await supabase
+          .rpc('ensure_user_organization');
+
+        if (bootstrapError) {
+          console.error('Error bootstrapping organization:', bootstrapError);
+          return;
+        }
+
+        // Re-fetch membership after bootstrap
+        const { data: refreshedMembers, error: refreshError } = await supabase
+          .from('organization_members')
+          .select('organization_id, role')
+          .eq('user_id', userId);
+
+        if (refreshError) {
+          console.error('Error re-fetching memberships:', refreshError);
+          return;
+        }
+
+        memberData = refreshedMembers;
       }
 
       if (memberData && memberData.length > 0) {

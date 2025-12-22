@@ -10,28 +10,62 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
-import { ApprovalStatus } from '@/types';
+import { CheckCircle, XCircle, Clock, Eye, Loader2 } from 'lucide-react';
+import { usePurchaseOrders, useUpdatePOStatus } from '@/hooks/usePurchaseOrders';
+import { useAuth } from '@/hooks/useAuth';
+import { ApprovalDialog } from '@/components/purchase-orders/ApprovalDialog';
+import type { PurchaseOrderWithDetails } from '@/hooks/usePurchaseOrders';
 
-// Demo data
-const demoApprovals = [
-  { id: '1', entityType: 'Purchase Order', entityId: 'PO-001235', description: 'Widget Supply Co. - $8,750.50', requestedBy: 'Mike Purchasing', status: 'pending' as ApprovalStatus, createdAt: '2024-03-05' },
-  { id: '2', entityType: 'Purchase Order', entityId: 'PO-001239', description: 'TechParts Direct - $5,200.00', requestedBy: 'Sarah Buyer', status: 'pending' as ApprovalStatus, createdAt: '2024-03-06' },
-  { id: '3', entityType: 'Inventory Adjustment', entityId: 'ADJ-0042', description: 'Write-off damaged inventory', requestedBy: 'John Warehouse', status: 'pending' as ApprovalStatus, createdAt: '2024-03-07' },
-  { id: '4', entityType: 'Purchase Order', entityId: 'PO-001234', description: 'Global Parts Inc. - $12,500.00', requestedBy: 'Mike Purchasing', status: 'approved' as ApprovalStatus, createdAt: '2024-03-01' },
-  { id: '5', entityType: 'New Supplier', entityId: 'SUP-0012', description: 'Pacific Wholesale Co.', requestedBy: 'Sarah Buyer', status: 'rejected' as ApprovalStatus, createdAt: '2024-02-28' },
-];
-
-const statusConfig: Record<ApprovalStatus, { label: string; icon: React.ElementType; className: string }> = {
+const statusConfig = {
   pending: { label: 'Pending', icon: Clock, className: 'bg-warning/10 text-warning' },
   approved: { label: 'Approved', icon: CheckCircle, className: 'bg-success/10 text-success' },
   rejected: { label: 'Rejected', icon: XCircle, className: 'bg-destructive/10 text-destructive' },
 };
 
 export default function Approvals() {
-  const [approvals] = useState(demoApprovals);
-  const pendingApprovals = approvals.filter((a) => a.status === 'pending');
-  const completedApprovals = approvals.filter((a) => a.status !== 'pending');
+  const { data: purchaseOrders = [], isLoading } = usePurchaseOrders();
+  const updateStatus = useUpdatePOStatus();
+  const { user } = useAuth();
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrderWithDetails | null>(null);
+  const [approvalOpen, setApprovalOpen] = useState(false);
+
+  const pendingApprovals = purchaseOrders.filter((po) => po.status === 'submitted');
+  const completedApprovals = purchaseOrders.filter((po) => po.status === 'approved' || po.status === 'cancelled');
+
+  const handleOpenApproval = (po: PurchaseOrderWithDetails) => {
+    setSelectedPO(po);
+    setApprovalOpen(true);
+  };
+
+  const handleApprove = (notes: string) => {
+    if (!selectedPO || !user?.id) return;
+    updateStatus.mutate(
+      { poId: selectedPO.id, status: 'approved', approvalNotes: notes, approvedBy: user.id },
+      { onSuccess: () => setApprovalOpen(false) }
+    );
+  };
+
+  const handleReject = (notes: string) => {
+    if (!selectedPO || !user?.id) return;
+    updateStatus.mutate(
+      { poId: selectedPO.id, status: 'cancelled', approvalNotes: notes, approvedBy: user.id },
+      { onSuccess: () => setApprovalOpen(false) }
+    );
+  };
+
+  const getStatusFromPOStatus = (status: string): 'pending' | 'approved' | 'rejected' => {
+    if (status === 'submitted') return 'pending';
+    if (status === 'approved') return 'approved';
+    return 'rejected';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -65,7 +99,7 @@ export default function Approvals() {
               <div>
                 <div className="text-sm text-muted-foreground">Approved</div>
                 <div className="text-2xl font-bold text-foreground">
-                  {approvals.filter((a) => a.status === 'approved').length}
+                  {purchaseOrders.filter((po) => po.status === 'approved').length}
                 </div>
               </div>
             </div>
@@ -80,7 +114,7 @@ export default function Approvals() {
               <div>
                 <div className="text-sm text-muted-foreground">Rejected</div>
                 <div className="text-2xl font-bold text-foreground">
-                  {approvals.filter((a) => a.status === 'rejected').length}
+                  {purchaseOrders.filter((po) => po.status === 'cancelled').length}
                 </div>
               </div>
             </div>
@@ -100,9 +134,9 @@ export default function Approvals() {
             </div>
           ) : (
             <div className="space-y-4">
-              {pendingApprovals.map((approval) => (
+              {pendingApprovals.map((po) => (
                 <div
-                  key={approval.id}
+                  key={po.id}
                   className="flex items-center justify-between p-4 rounded-lg border bg-card"
                 >
                   <div className="flex items-center gap-4">
@@ -110,22 +144,34 @@ export default function Approvals() {
                       <Clock className="h-5 w-5 text-warning" />
                     </div>
                     <div>
-                      <div className="font-medium text-foreground">{approval.description}</div>
+                      <div className="font-medium text-foreground">
+                        {po.supplier?.name} - ${(po.total_cost || 0).toLocaleString()}
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        {approval.entityType} • {approval.entityId} • Requested by {approval.requestedBy}
+                        Purchase Order • PO-{po.id.slice(0, 8).toUpperCase()} • {po.items?.length || 0} items
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="mr-2 h-4 w-4" />
-                      View
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setSelectedPO(po);
+                        handleReject('');
+                      }}
+                      disabled={updateStatus.isPending}
+                    >
                       <XCircle className="mr-2 h-4 w-4" />
                       Reject
                     </Button>
-                    <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground">
+                    <Button 
+                      size="sm" 
+                      className="bg-success hover:bg-success/90 text-success-foreground"
+                      onClick={() => handleOpenApproval(po)}
+                      disabled={updateStatus.isPending}
+                    >
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Approve
                     </Button>
@@ -143,44 +189,61 @@ export default function Approvals() {
           <CardTitle className="text-lg">History</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Requested By</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {completedApprovals.map((approval) => {
-                const config = statusConfig[approval.status];
-                return (
-                  <TableRow key={approval.id}>
-                    <TableCell>
-                      <Badge variant="outline">{approval.entityType}</Badge>
-                    </TableCell>
-                    <TableCell className="font-mono">{approval.entityId}</TableCell>
-                    <TableCell>{approval.description}</TableCell>
-                    <TableCell>{approval.requestedBy}</TableCell>
-                    <TableCell>
-                      <Badge className={config.className}>
-                        <config.icon className="mr-1 h-3 w-3" />
-                        {config.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(approval.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          {completedApprovals.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No approval history
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {completedApprovals.map((po) => {
+                  const status = getStatusFromPOStatus(po.status);
+                  const config = statusConfig[status];
+                  return (
+                    <TableRow key={po.id}>
+                      <TableCell>
+                        <Badge variant="outline">Purchase Order</Badge>
+                      </TableCell>
+                      <TableCell className="font-mono">PO-{po.id.slice(0, 8).toUpperCase()}</TableCell>
+                      <TableCell>{po.supplier?.name} - ${(po.total_cost || 0).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge className={config.className}>
+                          <config.icon className="mr-1 h-3 w-3" />
+                          {config.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {po.approved_at ? new Date(po.approved_at).toLocaleDateString() : new Date(po.created_at).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {selectedPO && (
+        <ApprovalDialog
+          open={approvalOpen}
+          onOpenChange={setApprovalOpen}
+          poId={selectedPO.id}
+          poNumber={`PO-${selectedPO.id.slice(0, 8).toUpperCase()}`}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isLoading={updateStatus.isPending}
+        />
+      )}
     </div>
   );
 }

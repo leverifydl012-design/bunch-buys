@@ -23,7 +23,7 @@ interface UserWithRole {
 }
 
 export default function AccessApprovals() {
-  const { user } = useAuth();
+  const { user, currentOrg } = useAuth();
   const { isAdmin, isLoading: roleLoading } = useUserRole();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -64,9 +64,13 @@ export default function AccessApprovals() {
     enabled: isAdmin,
   });
 
-  // Mutation to update or insert user role
+  // Mutation to update or insert user role and add to admin's organization
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
+      if (!currentOrg) {
+        throw new Error('No organization found');
+      }
+
       // Check if user already has a role
       const { data: existingRole } = await supabase
         .from('user_roles')
@@ -88,6 +92,34 @@ export default function AccessApprovals() {
           .insert({ user_id: userId, role });
         if (error) throw error;
       }
+
+      // Check if user is already in the admin's organization
+      const { data: existingMember } = await supabase
+        .from('organization_members')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('organization_id', currentOrg.id)
+        .single();
+
+      if (existingMember) {
+        // Update role in organization
+        const { error } = await supabase
+          .from('organization_members')
+          .update({ role })
+          .eq('user_id', userId)
+          .eq('organization_id', currentOrg.id);
+        if (error) throw error;
+      } else {
+        // Add user to admin's organization with selected role
+        const { error } = await supabase
+          .from('organization_members')
+          .insert({ 
+            user_id: userId, 
+            organization_id: currentOrg.id,
+            role 
+          });
+        if (error) throw error;
+      }
     },
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ['access-approvals-users'] });
@@ -97,8 +129,8 @@ export default function AccessApprovals() {
         return updated;
       });
       toast({
-        title: 'Role Updated',
-        description: 'User access level has been updated successfully.',
+        title: 'Access Granted',
+        description: 'User has been added to your organization with the selected role.',
       });
     },
     onError: (error) => {

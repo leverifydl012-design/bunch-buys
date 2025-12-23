@@ -19,6 +19,7 @@ import {
   Package as PackageIcon,
   Shield,
   Truck,
+  UserCheck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -64,6 +65,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         { name: 'Suppliers', href: '/suppliers', icon: Users },
         { name: 'Warehouses', href: '/warehouses', icon: Building2 },
         { name: 'Approvals', href: '/approvals', icon: CheckSquare },
+        { name: 'Access Approvals', href: '/access-approvals', icon: UserCheck },
         { name: 'Reports', href: '/reports', icon: BarChart3 },
       ];
     }

@@ -24,6 +24,7 @@ import PurchaseOrders from "@/pages/PurchaseOrders";
 import Suppliers from "@/pages/Suppliers";
 import Warehouses from "@/pages/Warehouses";
 import Approvals from "@/pages/Approvals";
+import AccessApprovals from "@/pages/AccessApprovals";
 import Reports from "@/pages/Reports";
 import Billing from "@/pages/Billing";
 import Settings from "@/pages/Settings";
@@ -98,6 +99,11 @@ function AppRoutes() {
       <Route path="/approvals" element={
         <ProtectedRoute requireAdmin>
           <AppLayout><Approvals /></AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/access-approvals" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout><AccessApprovals /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/reports" element={

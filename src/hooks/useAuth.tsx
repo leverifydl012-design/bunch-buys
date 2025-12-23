@@ -58,9 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchUserOrganizations = useCallback(async (userId: string) => {
+  const fetchUserOrganizations = useCallback(async (userId: string, userHasRole: boolean) => {
     try {
-      let { data: memberData, error: memberError } = await supabase
+      // Don't fetch/create organizations if user has no role (pending approval)
+      if (!userHasRole) {
+        setOrganizations([]);
+        setCurrentOrg(null);
+        return;
+      }
+
+      const { data: memberData, error: memberError } = await supabase
         .from('organization_members')
         .select('organization_id, role')
         .eq('user_id', userId);
@@ -68,30 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (memberError) {
         console.error('Error fetching org memberships:', memberError);
         return;
-      }
-
-      // If user has no organization, bootstrap one automatically
-      if (!memberData || memberData.length === 0) {
-        const { data: newOrgId, error: bootstrapError } = await supabase
-          .rpc('ensure_user_organization');
-
-        if (bootstrapError) {
-          console.error('Error bootstrapping organization:', bootstrapError);
-          return;
-        }
-
-        // Re-fetch membership after bootstrap
-        const { data: refreshedMembers, error: refreshError } = await supabase
-          .from('organization_members')
-          .select('organization_id, role')
-          .eq('user_id', userId);
-
-        if (refreshError) {
-          console.error('Error re-fetching memberships:', refreshError);
-          return;
-        }
-
-        memberData = refreshedMembers;
       }
 
       if (memberData && memberData.length > 0) {
@@ -124,6 +107,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [role]);
 
+  const initializeUserData = useCallback(async (userId: string) => {
+    // First check if user has a role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const userRole = roleData?.role || null;
+    setRole(userRole);
+
+    // Only fetch organizations if user has been approved (has a role)
+    if (userRole) {
+      fetchUserOrganizations(userId, true);
+    } else {
+      setOrganizations([]);
+      setCurrentOrg(null);
+    }
+  }, [fetchUserOrganizations]);
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -134,8 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Defer data fetches to avoid Supabase deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchUserRole(session.user.id);
-            fetchUserOrganizations(session.user.id);
+            initializeUserData(session.user.id);
           }, 0);
         } else {
           setRole(null);
@@ -153,15 +155,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id);
-        fetchUserOrganizations(session.user.id);
+        initializeUserData(session.user.id);
       }
       
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserRole, fetchUserOrganizations]);
+  }, [initializeUserData]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

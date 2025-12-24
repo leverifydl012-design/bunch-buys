@@ -32,9 +32,10 @@ export function useUserRole() {
   const isAdmin = role === 'admin';
   const isManager = role === 'manager';
   const isPurchasing = role === 'purchasing';
+  const isViewer = role === 'viewer';
   const canApprove = isAdmin || isManager;
-  const canCreatePO = isAdmin || isPurchasing;
-  const canCreateShipment = isAdmin;
+  const canCreatePO = !!role; // All members can create POs
+  const canCreateShipment = !!role; // All members can create shipments for their approved POs
 
   return {
     role,
@@ -42,6 +43,7 @@ export function useUserRole() {
     isAdmin,
     isManager,
     isPurchasing,
+    isViewer,
     canApprove,
     canCreatePO,
     canCreateShipment,
